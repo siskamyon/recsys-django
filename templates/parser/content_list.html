@@ -1,0 +1,113 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h2 class="mb-0"><i class="bi bi-newspaper"></i> Последние новости</h2>
+            <div>
+                <small class="text-muted me-2">
+                    {% if last_update %}
+                        Обновлено: {{ last_update|date:"d.m.Y H:i" }}
+                    {% else %}
+                        Еще не обновлялось
+                    {% endif %}
+                </small>
+                <button class="btn btn-sm btn-outline-primary btn-refresh">
+                    <i class="bi bi-arrow-repeat"></i> Обновить
+                </button>
+            </div>
+        </div>
+        
+        <div class="card-body">
+            {% if user_interests %}
+                <div class="alert alert-success">
+                    <i class="bi bi-check-circle"></i> 
+                    Показаны новости по вашим интересам: 
+                    {{ user_interests|join:", " }}
+                </div>
+            {% else %}
+                <div class="alert alert-info">
+                    <i class="bi bi-info-circle"></i> 
+                    Укажите интересы в 
+                    <a href="{% url 'profile_edit' %}">профиле</a> 
+                    для персонализированной ленты
+                </div>
+            {% endif %}
+            
+            <div id="content-container">
+                {% include "parser/content_partial.html" %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    function refreshContent() {
+        const container = document.getElementById('content-container');
+        if (!container) return;
+        
+        container.innerHTML = `
+            <div class="text-center py-4">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Загрузка...</span>
+                </div>
+                <p class="mt-2">Идет обновление новостей...</p>
+            </div>
+        `;
+        
+        fetch("{% url 'refresh_content' %}", {
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                setTimeout(() => {
+                    window.location.reload();
+                }, 10000);
+            } else {
+                container.innerHTML = `
+                    <div class="alert alert-danger">
+                        Ошибка: ${data.message}
+                    </div>
+                `;
+            }
+        })
+        .catch(error => {
+            container.innerHTML = `
+                <div class="alert alert-danger">
+                    Ошибка соединения: ${error}
+                </div>
+            `;
+        });
+    }
+    
+    const refreshBtn = document.querySelector('.btn-refresh');
+    if (refreshBtn) {
+        refreshBtn.addEventListener('click', refreshContent);
+    }
+    
+    setInterval(() => {
+        fetch(window.location.href, {
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+        .then(response => response.text())
+        .then(html => {
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(html, 'text/html');
+            const newTime = doc.querySelector('.text-muted.me-2')?.textContent;
+            if (newTime && newTime !== document.querySelector('.text-muted.me-2')?.textContent) {
+                window.location.reload();
+            }
+        });
+    }, 300000);
+});
+</script>
+{% endblock %}

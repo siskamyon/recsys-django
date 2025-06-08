@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h1>Добро пожаловать, {{ user.nickname }}!</h1>
+<div class="interests">
+    <h3>Ваши интересы:</h3>
+    <p>{{ user.interests|default:"Вы еще не указали свои интересы" }}</p>
+    <a href="{% url 'update_interests' %}" class="btn btn-outline-primary">Изменить интересы</a>
+</div>
+{% endblock %}

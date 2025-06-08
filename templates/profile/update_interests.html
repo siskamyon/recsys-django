@@ -1,0 +1,123 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h2 class="mb-0">Обновление интересов</h2>
+                </div>
+                <div class="card-body">
+                    <form id="interests-form">
+                        {% csrf_token %}
+                        <input type="hidden" name="interests" id="id_interests">
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Добавить интерес</label>
+                            <div class="input-group">
+                                <input type="text" id="new-interest" class="form-control" placeholder="Введите интерес">
+                                <button class="btn btn-success" type="button" id="add-interest">
+                                    <i class="bi bi-plus"></i> Добавить
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div id="interests-container" class="mb-3">
+                            {% for interest in current_interests %}
+                            <span class="badge bg-primary me-2 mb-2 interest-tag">
+                                {{ interest }}
+                                <button type="button" class="btn-close btn-close-white ms-1" aria-label="Удалить"></button>
+                            </span>
+                            {% endfor %}
+                        </div>
+                        
+                        <div class="d-flex justify-content-between">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-save"></i> Сохранить
+                            </button>
+                            <a href="{% url 'profile_view' %}" class="btn btn-outline-secondary">
+                                <i class="bi bi-x"></i> Отмена
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .interest-tag {
+        font-size: 1rem;
+        padding: 0.5em 0.75em;
+        display: inline-flex;
+        align-items: center;
+    }
+    .btn-close {
+        font-size: 0.7rem;
+    }
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('interests-form');
+    const newInterestInput = document.getElementById('new-interest');
+    const addInterestBtn = document.getElementById('add-interest');
+    const interestsContainer = document.getElementById('interests-container');
+    const hiddenInput = document.getElementById('id_interests');
+    
+    function updateHiddenInput() {
+        const tags = Array.from(document.querySelectorAll('.interest-tag'))
+            .map(tag => tag.textContent.trim().replace('×', '').trim());
+        hiddenInput.value = tags.join(', ');
+    }
+    
+    addInterestBtn.addEventListener('click', function() {
+        const interest = newInterestInput.value.trim();
+        if (interest) {
+            const tag = document.createElement('span');
+            tag.className = 'badge bg-primary me-2 mb-2 interest-tag';
+            tag.innerHTML = `
+                ${interest}
+                <button type="button" class="btn-close btn-close-white ms-1" aria-label="Удалить"></button>
+            `;
+            interestsContainer.appendChild(tag);
+            newInterestInput.value = '';
+            updateHiddenInput();
+            
+            tag.querySelector('button').addEventListener('click', function() {
+                tag.remove();
+                updateHiddenInput();
+            });
+        }
+    });
+    
+    form.addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        fetch("{% url 'update_interests' %}", {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: new URLSearchParams(new FormData(form))
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                window.location.href = "{% url 'profile_view' %}";
+            }
+        });
+    });
+    
+    document.querySelectorAll('.interest-tag button').forEach(btn => {
+        btn.addEventListener('click', function() {
+            this.parentElement.remove();
+            updateHiddenInput();
+        });
+    });
+});
+</script>
+{% endblock %}

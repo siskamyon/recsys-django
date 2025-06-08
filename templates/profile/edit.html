@@ -1,0 +1,175 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h2 class="mb-0">Редактирование профиля</h2>
+                </div>
+                <div class="card-body">
+                    <form method="post" id="profile-form">
+                        {% csrf_token %}
+                        
+                        <!-- Поле никнейма -->
+                        <div class="mb-3">
+                            <label class="form-label">{{ form.nickname.label }}</label>
+                            {{ form.nickname }}
+                        </div>
+                        
+                        <!-- Поле email -->
+                        <div class="mb-3">
+                            <label class="form-label">Почтовый адрес</label>
+                            {{ form.email }}
+                        </div>
+                        
+                        <!-- Блок интересов -->
+                        <div class="mb-3">
+                            <label class="form-label">Ваши интересы</label>
+                            <div class="input-group mb-3">
+                                <input type="text" id="new-interest" class="form-control" placeholder="Введите интерес">
+                                <button class="btn btn-success" type="button" id="add-interest">
+                                    <i class="bi bi-plus"></i> Добавить
+                                </button>
+                            </div>
+                            
+                            <div id="interests-container" class="mb-3">
+                                {% for interest in current_interests %}
+                                <span class="badge bg-primary me-2 mb-2 interest-tag">
+                                    {{ interest }}
+                                    <button type="button" class="btn-close btn-close-white ms-1" aria-label="Удалить"></button>
+                                </span>
+                                {% endfor %}
+                            </div>
+                            <input type="hidden" name="interests" id="id_interests" value="{{ form.interests.value|default:'' }}">
+                        </div>
+                        
+                        <!-- Блок предпочтительных источников -->
+                        <div class="mb-3">
+                            <label class="form-label">Предпочитаемые источники</label>
+                            <div class="input-group mb-3">
+                                <div id="sources-container" class="mb-3">
+                                    {% for source in content_sources %}
+                                    <div class="form-check">
+                                        <input type="checkbox" class="form-check-input" name="preferred_sources" value="{{ source.id }}" 
+                                               id="source_{{ source.id }}" 
+                                               {% if source.id in selected_sources %}checked{% endif %}>
+                                        <label class="form-check-label" for="source_{{ source.id }}">{{ source.name }}</label>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                            <input type="hidden" name="preferred_sources" id="id_preferred_sources" value="{{ form.preferred_sources.value|default:'' }}">
+                        </div>
+                        
+                        <div class="d-flex justify-content-between">
+                            <button type="submit" class="btn btn-primary px-4">
+                                <i class="bi bi-check-circle"></i> Сохранить
+                            </button>
+                            <a href="{% url 'profile_view' %}" class="btn btn-outline-secondary">
+                                <i class="bi bi-x-circle"></i> Отмена
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .interest-tag {
+        font-size: 1rem;
+        padding: 0.5em 0.75em;
+        display: inline-flex;
+        align-items: center;
+    }
+    .btn-close {
+        font-size: 0.7rem;
+    }
+    #interests-container, #sources-container {
+        min-height: 50px;
+        padding: 10px;
+        border: 1px solid #dee2e6;
+        border-radius: 5px;
+        background-color: #f8f9fa;
+    }
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('profile-form');
+    const newInterestInput = document.getElementById('new-interest');
+    const addInterestBtn = document.getElementById('add-interest');
+    const interestsContainer = document.getElementById('interests-container');
+    const hiddenInterestInput = document.getElementById('id_interests');
+    const hiddenSourcesInput = document.getElementById('id_preferred_sources');
+    
+    function initInterests() {
+        const interests = hiddenInterestInput.value.split(',').filter(i => i.trim());
+        interestsContainer.innerHTML = '';
+        interests.forEach(interest => {
+            addInterestTag(interest.trim());
+        });
+    }
+    
+    function addInterestTag(interest) {
+        const tag = document.createElement('span');
+        tag.className = 'badge bg-primary me-2 mb-2 interest-tag';
+        tag.innerHTML = `
+            ${interest}
+            <button type="button" class="btn-close btn-close-white ms-1" aria-label="Удалить"></button>
+        `;
+        interestsContainer.appendChild(tag);
+        
+        tag.querySelector('button').addEventListener('click', function() {
+            tag.remove();
+            updateHiddenInput();
+        });
+    }
+    
+    function updateHiddenInput() {
+        const tags = Array.from(document.querySelectorAll('.interest-tag'))
+            .map(tag => tag.textContent.trim().replace('×', '').trim());
+        hiddenInterestInput.value = tags.join(', ');
+    }
+    
+    function updateSourcesInput() {
+        const checkboxes = document.querySelectorAll('input[name="preferred_sources"]:checked');
+        const sourceIds = Array.from(checkboxes).map(cb => cb.value);
+        hiddenSourcesInput.value = sourceIds.join(',');
+        console.log('Updated preferred_sources:', hiddenSourcesInput.value);
+    }
+    
+    addInterestBtn.addEventListener('click', function() {
+        const interest = newInterestInput.value.trim();
+        if (interest && !hiddenInterestInput.value.includes(interest)) {
+            addInterestTag(interest);
+            newInterestInput.value = '';
+            updateHiddenInput();
+        }
+    });
+    
+    newInterestInput.addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            addInterestBtn.click();
+        }
+    });
+    
+    document.querySelectorAll('input[name="preferred_sources"]').forEach(checkbox => {
+        checkbox.addEventListener('change', updateSourcesInput);
+    });
+    
+    initInterests();
+    updateSourcesInput();
+});
+</script>
+
+{% endblock %}
+
+{% block extra_context %}
+{% with content_sources=content_sources selected_sources=selected_sources %}
+{% endwith %}
+{% endblock %}
